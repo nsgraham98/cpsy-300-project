@@ -1,0 +1,23 @@
+version: "3.9"
+services:
+  analysis:
+    image: diet-analysis:latest
+    working_dir: /app
+    command: ["python", "-u", "data_analysis.py"]
+    environment:
+      MPLBACKEND: Agg
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ./:/app
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import os,sys; sys.exit(0 if os.path.exists('outputs/top_5_protein_rich_recipes.png') else 1)",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: "no"
