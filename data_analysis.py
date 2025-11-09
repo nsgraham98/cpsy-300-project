@@ -77,4 +77,5 @@ def run_analysis(df: pd.DataFrame, output_dir="outputs"):
     }
 
 if __name__ == "__main__":
-    run_analysis()
+    df = pd.read_csv("data/All_Diets.csv")
+    run_analysis(df)
