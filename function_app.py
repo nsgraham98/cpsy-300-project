@@ -8,7 +8,7 @@ import io
 import pandas as pd
 from azure.storage.blob import BlobServiceClient
 
-# Create FunctionApp instance (v2 programming model)
+# Create FunctionApp instance
 app = func.FunctionApp()
 
 
@@ -54,7 +54,7 @@ def analyze_diets(req: func.HttpRequest) -> func.HttpResponse:
               .reset_index(drop=True)
         )
 
-        # Optionally add ratios if you used them in your local script
+        # Optionally add ratios
         if "Protein(g)" in df.columns and "Carbs(g)" in df.columns and "Fat(g)" in df.columns:
             df["Protein_to_Carbs_ratio"] = df["Protein(g)"] / df["Carbs(g)"].replace({0: pd.NA})
             df["Carbs_to_Fat_ratio"] = df["Carbs(g)"] / df["Fat(g)"].replace({0: pd.NA})

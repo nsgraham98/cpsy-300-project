@@ -1,3 +1,5 @@
+# https://black-bay-0df91b50f.3.azurestaticapps.net/
+
 import azure.functions as func
 from azure.storage.blob import BlobServiceClient
 import pandas as pd
@@ -5,61 +7,62 @@ import json
 import io
 import os
 import time
+import logging
+
+import data_analysis  # <-- uses run_analysis(df, output_dir="...")
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
     start = time.time()
+    logging.info("diet-analysis function started")
 
     try:
-        # 1) Get connection string from env var (AzureWebJobsStorage is usually set by Azure)
+        # 1) Get connection string from env var
         conn_str = os.getenv("AzureWebJobsStorage")
         if not conn_str:
+            logging.error("AzureWebJobsStorage environment variable is not set")
             return func.HttpResponse(
                 "AzureWebJobsStorage not configured.",
-                status_code=500
+                status_code=500,
             )
 
-        # 2) Connect to your storage account + container
+        # 2) Connect to storage account + container
         blob_service = BlobServiceClient.from_connection_string(conn_str)
-        container_client = blob_service.get_container_client("app-package-diet-analysis-function-app-213f2b9")  # <-- use your container name
+        container_client = blob_service.get_container_client(
+            "app-package-diet-analysis-function-app-213f2b9"
+        )
         blob_client = container_client.get_blob_client("All_Diets.csv")  # <-- your blob name
 
         # 3) Download CSV into a DataFrame
         data = blob_client.download_blob().readall()
         df = pd.read_csv(io.BytesIO(data))
 
-        # 4) Do your analysis (simplified version)
-        avg_macros = (
-            df.groupby("Diet_type")[["Protein(g)", "Carbs(g)", "Fat(g)"]]
-              .mean()
-              .round(2)
-              .reset_index()
-        )
+        # 4) Run shared analysis logic (saves plots + returns summary dict)
+        #    Use /tmp in Azure Functions for temporary files
+        analysis_output_dir = "/tmp/outputs"
+        summary = data_analysis.run_analysis(df, output_dir=analysis_output_dir)
 
-        top_protein = (
-            df.sort_values("Protein(g)", ascending=False)
-              .groupby("Diet_type")
-              .head(5)
-              .reset_index(drop=True)
-        )
-
-        # 5) Prepare JSON-friendly result
+        # 5) Prepare JSON-friendly result (summary with metadata)
         result = {
-            "avg_macros": avg_macros.to_dict(orient="records"),
-            "top_protein": top_protein.to_dict(orient="records"),
+            **summary,  # avg_macros, top_protein from data_analysis.run_analysis
             "metadata": {
-                "execution_time_ms": round((time.time() - start) * 1000, 2)
-            }
+                "row_count": int(len(df)),
+                "diet_types": int(df["Diet_type"].nunique())
+                if "Diet_type" in df.columns
+                else None,
+                "execution_time_ms": round((time.time() - start) * 1000, 2),
+                "plots_output_dir": analysis_output_dir,
+            },
         }
 
         return func.HttpResponse(
             json.dumps(result),
             mimetype="application/json",
-            status_code=200
+            status_code=200,
         )
 
     except Exception as e:
-        # Helpful error message if something goes wrong
+        logging.exception("Error while processing diets data")
         return func.HttpResponse(
             f"Error while processing diets data: {e}",
-            status_code=500
+            status_code=500,
         )

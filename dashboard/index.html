@@ -1,3 +1,4 @@
+<!-- https://black-bay-0df91b50f.3.azurestaticapps.net/ -->
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -86,7 +87,7 @@
         </div>
       </section>
 
-      <!-- API Interaction Buttons (hooked to the same fetch for now) -->
+      <!-- API Interaction Buttons -->
       <section class="mb-8">
         <h2 class="text-2xl font-semibold mb-4">API Data Interaction</h2>
         <div class="flex flex-wrap gap-4">
@@ -96,7 +97,6 @@
           >
             Get Nutritional Insights
           </button>
-          <!-- You can extend these later if you create more endpoints -->
           <button
             class="bg-green-600 text-white py-2 px-4 rounded opacity-60 cursor-not-allowed"
             title="Future endpoint"
@@ -112,7 +112,7 @@
         </div>
       </section>
 
-      <!-- Simple pagination UI (not wired to API yet, optional) -->
+      <!-- Simple pagination UI (not wired to API yet) -->
       <section>
         <h2 class="text-2xl font-semibold mb-4">Pagination (placeholder)</h2>
         <div class="flex justify-center gap-2 mt-4">
@@ -136,7 +136,6 @@
 
     <!-- DASHBOARD LOGIC -->
     <script>
-      // TODO: Replace this with your real Azure Function URL
       const FUNCTION_URL =
         "https://diet-analysis-function-app-htdkfqhafucsajaa.eastus-01.azurewebsites.net/api/diet-analysis";
 
@@ -169,7 +168,6 @@
 
       function populateDietFilter(data) {
         const dietFilter = document.getElementById("dietFilter");
-        // Clear all options except the first "all"
         dietFilter.innerHTML = '<option value="all">All Diet Types</option>';
 
         const dietTypes = new Set();
@@ -219,7 +217,7 @@
         const carbsData = filteredAvg.map((row) => row["Carbs(g)"] || 0);
         const fatData = filteredAvg.map((row) => row["Fat(g)"] || 0);
 
-        // --- 1) Grouped Bar Chart ---
+        // Grouped Bar Chart
         const barCtx = document.getElementById("barChart").getContext("2d");
         if (barChart) barChart.destroy();
         barChart = new Chart(barCtx, {
@@ -256,7 +254,7 @@
           },
         });
 
-        // --- 2) Scatter Plot of Top Protein Recipes ---
+        // Scatter Plot of Top Protein Recipes
         const scatterCtx = document
           .getElementById("scatterPlot")
           .getContext("2d");
@@ -308,7 +306,7 @@
           },
         });
 
-        // --- 3) Pie Chart: distribution of recipes by Diet_type (top_protein) ---
+        // Pie Chart: distribution of recipes by Diet_type (top_protein)
         const pieCtx = document.getElementById("pieChart").getContext("2d");
         if (pieChart) pieChart.destroy();
 
@@ -339,8 +337,6 @@
           },
         });
       }
-
-      // Wire up interactions
       document
         .getElementById("refreshBtn")
         .addEventListener("click", fetchData);
@@ -354,7 +350,6 @@
         .getElementById("dietFilter")
         .addEventListener("change", updateCharts);
 
-      // Initial load
       fetchData();
     </script>
   </body>
