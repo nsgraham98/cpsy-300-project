@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nutritional Insights</title>
+    <!-- Tailwind CSS CDN -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.0.0/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body class="bg-gray-100">
+    <header class="bg-blue-600 p-4 text-white">
+      <div
+        class="container mx-auto flex flex-col md:flex-row justify-between items-center"
+      >
+        <h1 class="text-3xl font-semibold">Nutritional Insights Dashboard</h1>
+        <div class="mt-2 md:mt-0 text-sm">
+          <span class="font-semibold">Last Updated:</span>
+          <span id="last-updated" class="ml-1 text-gray-200">--</span>
+          <span class="mx-2">|</span>
+          <span class="font-semibold">Execution Time:</span>
+          <span id="exec-time" class="ml-1 text-gray-200">--</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="container mx-auto p-6">
+      <!-- Charts Section -->
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold mb-4">Visual Nutritional Insights</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <!-- Grouped Bar Chart -->
+          <div class="bg-white p-4 shadow-lg rounded-lg">
+            <h3 class="font-semibold mb-1">Average Macros by Diet Type</h3>
+            <p class="text-sm text-gray-600 mb-2">
+              Average protein, carbs, and fat for each diet type.
+            </p>
+            <canvas id="barChart" class="w-full h-48"></canvas>
+          </div>
+
+          <!-- Scatter Plot -->
+          <div class="bg-white p-4 shadow-lg rounded-lg">
+            <h3 class="font-semibold mb-1">Top Protein-Rich Recipes</h3>
+            <p class="text-sm text-gray-600 mb-2">
+              Top protein recipes (protein vs carbs), colored by diet type.
+            </p>
+            <canvas id="scatterPlot" class="w-full h-48"></canvas>
+          </div>
+
+          <!-- Pie Chart -->
+          <div class="bg-white p-4 shadow-lg rounded-lg">
+            <h3 class="font-semibold mb-1">Recipe Distribution by Diet Type</h3>
+            <p class="text-sm text-gray-600 mb-2">
+              How many top protein recipes belong to each diet type.
+            </p>
+            <canvas id="pieChart" class="w-full h-48"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- Filters Section -->
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold mb-4">
+          Filters and Data Interaction
+        </h2>
+        <div class="flex flex-wrap gap-4 items-center">
+          <input
+            id="searchDietInput"
+            type="text"
+            placeholder="Search by Diet Type"
+            class="p-2 border rounded w-full sm:w-64"
+          />
+          <select id="dietFilter" class="p-2 border rounded w-full sm:w-48">
+            <option value="all">All Diet Types</option>
+          </select>
+          <button
+            id="refreshBtn"
+            class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
+          >
+            Refresh Data
+          </button>
+        </div>
+      </section>
+
+      <!-- API Interaction Buttons (hooked to the same fetch for now) -->
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold mb-4">API Data Interaction</h2>
+        <div class="flex flex-wrap gap-4">
+          <button
+            id="getInsightsBtn"
+            class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
+          >
+            Get Nutritional Insights
+          </button>
+          <!-- You can extend these later if you create more endpoints -->
+          <button
+            class="bg-green-600 text-white py-2 px-4 rounded opacity-60 cursor-not-allowed"
+            title="Future endpoint"
+          >
+            Get Recipes (coming soon)
+          </button>
+          <button
+            class="bg-purple-600 text-white py-2 px-4 rounded opacity-60 cursor-not-allowed"
+            title="Future endpoint"
+          >
+            Get Clusters (coming soon)
+          </button>
+        </div>
+      </section>
+
+      <!-- Simple pagination UI (not wired to API yet, optional) -->
+      <section>
+        <h2 class="text-2xl font-semibold mb-4">Pagination (placeholder)</h2>
+        <div class="flex justify-center gap-2 mt-4">
+          <button class="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400">
+            Previous
+          </button>
+          <button class="px-3 py-1 bg-blue-600 text-white rounded">1</button>
+          <button class="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400">
+            2
+          </button>
+          <button class="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400">
+            Next
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="bg-blue-600 p-4 text-white text-center mt-10">
+      <p>&copy; 2025 Nutritional Insights. All Rights Reserved.</p>
+    </footer>
+
+    <!-- DASHBOARD LOGIC -->
+    <script>
+      // TODO: Replace this with your real Azure Function URL
+      const FUNCTION_URL =
+        "https://diet-analysis-function-app-htdkfqhafucsajaa.eastus-01.azurewebsites.net/api/diet-analysis";
+
+      let rawData = null;
+      let barChart = null;
+      let scatterChart = null;
+      let pieChart = null;
+
+      async function fetchData() {
+        try {
+          const res = await fetch(FUNCTION_URL);
+          if (!res.ok) {
+            throw new Error("Failed to fetch data from Azure Function");
+          }
+          const data = await res.json();
+          rawData = data;
+
+          // Update metadata
+          const now = new Date().toLocaleString();
+          document.getElementById("last-updated").textContent = now;
+          document.getElementById("exec-time").textContent =
+            (data.metadata?.execution_time_ms ?? "--") + " ms";
+
+          populateDietFilter(data);
+          updateCharts();
+        } catch (err) {
+          console.error(err);
+        }
+      }
+
+      function populateDietFilter(data) {
+        const dietFilter = document.getElementById("dietFilter");
+        // Clear all options except the first "all"
+        dietFilter.innerHTML = '<option value="all">All Diet Types</option>';
+
+        const dietTypes = new Set();
+        (data.avg_macros || []).forEach((row) => {
+          if (row.Diet_type) {
+            dietTypes.add(row.Diet_type);
+          }
+        });
+
+        Array.from(dietTypes)
+          .sort()
+          .forEach((diet) => {
+            const opt = document.createElement("option");
+            opt.value = diet;
+            opt.textContent = diet;
+            dietFilter.appendChild(opt);
+          });
+      }
+
+      function getFilteredDietTypes() {
+        if (!rawData) return [];
+
+        const searchText = document
+          .getElementById("searchDietInput")
+          .value.trim()
+          .toLowerCase();
+        const selectedDiet = document.getElementById("dietFilter").value;
+
+        return (rawData.avg_macros || []).filter((row) => {
+          const diet = (row.Diet_type || "").toLowerCase();
+
+          const matchesSearch = !searchText || diet.includes(searchText);
+          const matchesSelect =
+            selectedDiet === "all" || row.Diet_type === selectedDiet;
+
+          return matchesSearch && matchesSelect;
+        });
+      }
+
+      function updateCharts() {
+        if (!rawData) return;
+
+        const filteredAvg = getFilteredDietTypes();
+        const avgLabels = filteredAvg.map((row) => row.Diet_type);
+
+        const proteinData = filteredAvg.map((row) => row["Protein(g)"] || 0);
+        const carbsData = filteredAvg.map((row) => row["Carbs(g)"] || 0);
+        const fatData = filteredAvg.map((row) => row["Fat(g)"] || 0);
+
+        // --- 1) Grouped Bar Chart ---
+        const barCtx = document.getElementById("barChart").getContext("2d");
+        if (barChart) barChart.destroy();
+        barChart = new Chart(barCtx, {
+          type: "bar",
+          data: {
+            labels: avgLabels,
+            datasets: [
+              {
+                label: "Protein (g)",
+                data: proteinData,
+              },
+              {
+                label: "Carbs (g)",
+                data: carbsData,
+              },
+              {
+                label: "Fat (g)",
+                data: fatData,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { position: "top" },
+              title: {
+                display: false,
+              },
+            },
+            scales: {
+              x: { stacked: false },
+              y: { beginAtZero: true },
+            },
+          },
+        });
+
+        // --- 2) Scatter Plot of Top Protein Recipes ---
+        const scatterCtx = document
+          .getElementById("scatterPlot")
+          .getContext("2d");
+        if (scatterChart) scatterChart.destroy();
+
+        const topProtein = rawData.top_protein || [];
+        const scatterData = topProtein.map((row) => ({
+          x: row["Carbs(g)"] || 0,
+          y: row["Protein(g)"] || 0,
+          label: row.Recipe_name || "Recipe",
+          diet: row.Diet_type || "Unknown",
+        }));
+
+        scatterChart = new Chart(scatterCtx, {
+          type: "scatter",
+          data: {
+            datasets: [
+              {
+                label: "Top Protein Recipes",
+                data: scatterData,
+                parsing: {
+                  xAxisKey: "x",
+                  yAxisKey: "y",
+                },
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    const point = context.raw;
+                    return `${point.label} (${point.diet}): Protein ${point.y}g, Carbs ${point.x}g`;
+                  },
+                },
+              },
+            },
+            scales: {
+              x: {
+                title: { display: true, text: "Carbs (g)" },
+              },
+              y: {
+                title: { display: true, text: "Protein (g)" },
+                beginAtZero: true,
+              },
+            },
+          },
+        });
+
+        // --- 3) Pie Chart: distribution of recipes by Diet_type (top_protein) ---
+        const pieCtx = document.getElementById("pieChart").getContext("2d");
+        if (pieChart) pieChart.destroy();
+
+        const countsByDiet = {};
+        (topProtein || []).forEach((row) => {
+          const diet = row.Diet_type || "Unknown";
+          countsByDiet[diet] = (countsByDiet[diet] || 0) + 1;
+        });
+
+        const pieLabels = Object.keys(countsByDiet);
+        const pieValues = Object.values(countsByDiet);
+
+        pieChart = new Chart(pieCtx, {
+          type: "pie",
+          data: {
+            labels: pieLabels,
+            datasets: [
+              {
+                data: pieValues,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { position: "bottom" },
+            },
+          },
+        });
+      }
+
+      // Wire up interactions
+      document
+        .getElementById("refreshBtn")
+        .addEventListener("click", fetchData);
+      document
+        .getElementById("getInsightsBtn")
+        .addEventListener("click", fetchData);
+      document
+        .getElementById("searchDietInput")
+        .addEventListener("input", updateCharts);
+      document
+        .getElementById("dietFilter")
+        .addEventListener("change", updateCharts);
+
+      // Initial load
+      fetchData();
+    </script>
+  </body>
+</html>
