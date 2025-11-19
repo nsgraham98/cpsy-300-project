@@ -30,8 +30,8 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         container_client = blob_service.get_container_client(
             "app-package-diet-analysis-function-app-213f2b9"
         )
-        blob_client = container_client.get_blob_client("All_Diets.csv")  # <-- your blob name
-
+        blob_client = container_client.get_blob_client("All_Diets.csv")
+        
         # 3) Download CSV into a DataFrame
         data = blob_client.download_blob().readall()
         df = pd.read_csv(io.BytesIO(data))
