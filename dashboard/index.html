@@ -12,24 +12,96 @@
     />
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      /* Prevent canvas sizing from affecting layout (stops infinite growth) */
+      .chart-box {
+        height: 20rem; /* same as Tailwind h-80 */
+        position: relative;
+      }
+      .chart-box > canvas {
+        position: absolute;
+        inset: 0;
+        width: 100% !important;
+        height: 100% !important;
+        display: block;
+      }
+    </style>
   </head>
   <body class="bg-gray-100">
     <header class="bg-blue-600 p-4 text-white">
       <div
-        class="container mx-auto flex flex-col md:flex-row justify-between items-center"
+        class="container mx-auto flex flex-col md:flex-row items-center relative"
       >
         <h1 class="text-3xl font-semibold">Nutritional Insights Dashboard</h1>
-        <div class="mt-2 md:mt-0 text-sm">
+        <div class="mt-2 md:mt-0 text-sm hidden">
           <span class="font-semibold">Last Updated:</span>
           <span id="last-updated" class="ml-1 text-gray-200">--</span>
           <span class="mx-2">|</span>
           <span class="font-semibold">Execution Time:</span>
           <span id="exec-time" class="ml-1 text-gray-200">--</span>
         </div>
+        <!-- Auth UI (top-right) -->
+        <div
+          id="userBox"
+          class="hidden absolute top-4 right-4 flex items-center gap-3 text-sm"
+        >
+          <span class="text-gray-200">Signed in as</span>
+          <span id="userName" class="font-semibold"></span>
+          <button
+            id="logoutBtn"
+            class="bg-white text-blue-700 px-3 py-1 rounded hover:bg-gray-100"
+          >
+            Logout
+          </button>
+        </div>
       </div>
     </header>
+    <!-- LOGIN GATE -->
+    <section id="authGate" class="container mx-auto p-6">
+      <div class="max-w-md mx-auto bg-white p-6 shadow-lg rounded-lg">
+        <h2 class="text-2xl font-semibold mb-2">Login to view dashboard</h2>
+        <p class="text-gray-600 mb-4">Sign in with Email/Password or Google.</p>
 
-    <main class="container mx-auto p-6">
+        <div id="authError" class="hidden text-red-600 text-sm mb-3"></div>
+
+        <input
+          id="email"
+          type="email"
+          placeholder="Email"
+          class="p-2 border rounded w-full mb-2"
+        />
+        <input
+          id="password"
+          type="password"
+          placeholder="Password"
+          class="p-2 border rounded w-full mb-3"
+        />
+
+        <div class="flex gap-2 mb-3">
+          <button
+            id="loginEmailBtn"
+            class="flex-1 bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
+          >
+            Login
+          </button>
+          <button
+            id="registerEmailBtn"
+            class="flex-1 bg-gray-700 text-white py-2 px-4 rounded hover:bg-gray-800"
+          >
+            Register
+          </button>
+        </div>
+
+        <button
+          id="loginGoogleBtn"
+          class="w-full bg-white border py-2 px-4 rounded hover:bg-gray-50"
+        >
+          Continue with Google
+        </button>
+      </div>
+    </section>
+
+    <main id="dashboardApp" class="container mx-auto p-6 hidden">
       <!-- Charts Section -->
       <section class="mb-8">
         <h2 class="text-2xl font-semibold mb-4">Visual Nutritional Insights</h2>
@@ -40,7 +112,9 @@
             <p class="text-sm text-gray-600 mb-2">
               Average protein, carbs, and fat for each diet type.
             </p>
-            <canvas id="barChart" class="w-full h-48"></canvas>
+            <div class="chart-box">
+              <canvas id="barChart"></canvas>
+            </div>
           </div>
 
           <!-- Scatter Plot -->
@@ -49,7 +123,9 @@
             <p class="text-sm text-gray-600 mb-2">
               Top protein recipes (protein vs carbs), colored by diet type.
             </p>
-            <canvas id="scatterPlot" class="w-full h-48"></canvas>
+            <div class="chart-box">
+              <canvas id="scatterPlot"></canvas>
+            </div>
           </div>
 
           <!-- Pie Chart -->
@@ -60,7 +136,11 @@
             <p class="text-sm text-gray-600 mb-2">
               How many top protein recipes belong to each diet type.
             </p>
-            <canvas id="pieChart" class="w-full h-48"></canvas>
+            <div class="relative w-full h-80">
+              <div class="chart-box">
+                <canvas id="pieChart"></canvas>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -89,8 +169,8 @@
         </div>
       </section>
 
-      <!-- API Interaction Buttons -->
-      <section class="mb-8">
+      <!-- API Interaction Buttons (hidden) -->
+      <section class="mb-8 hidden">
         <h2 class="text-2xl font-semibold mb-4">API Data Interaction</h2>
         <div class="flex flex-wrap gap-4">
           <button

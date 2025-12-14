@@ -2,6 +2,7 @@
 import { fetchAnalysisData, fetchRecipes } from "./api.js";
 import { renderCharts } from "./charts.js";
 import { resetRecipePaging, loadRecipesPage } from "./recipes.js";
+import { initAuth } from "./auth.js";
 
 let rawData = null;
 
@@ -39,61 +40,72 @@ function getFilteredAvg() {
 }
 
 async function loadDashboard() {
-  try {
-    rawData = await fetchAnalysisData();
+  rawData = await fetchAnalysisData();
 
-    document.getElementById("last-updated").textContent =
-      new Date().toLocaleString();
-    document.getElementById("exec-time").textContent =
-      (rawData.metadata?.execution_time_ms ?? "--") + " ms";
+  document.getElementById("last-updated").textContent =
+    new Date().toLocaleString();
+  document.getElementById("exec-time").textContent =
+    (rawData.metadata?.execution_time_ms ?? "--") + " ms";
 
-    populateDietFilter(rawData);
-    renderCharts(rawData, getFilteredAvg());
-  } catch (err) {
-    console.error(err);
-  }
+  populateDietFilter(rawData);
+  renderCharts(rawData, getFilteredAvg());
+}
+
+function debounce(fn, ms = 250) {
+  let t = null;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), ms);
+  };
+}
+
+async function refreshAll() {
+  renderCharts(rawData, getFilteredAvg());
+  resetRecipePaging();
+  await loadRecipesPage(fetchRecipes, "first");
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("refreshBtn").addEventListener("click", async () => {
-    await loadDashboard();
-    resetRecipePaging();
-    await loadRecipesPage(fetchRecipes, "first");
-  });
+  initAuth({
+    onLoggedIn: async () => {
+      document
+        .getElementById("refreshBtn")
+        .addEventListener("click", async () => {
+          await loadDashboard();
+          await refreshAll();
+        });
 
-  document
-    .getElementById("getInsightsBtn")
-    .addEventListener("click", async () => {
+      // document
+      //   .getElementById("getInsightsBtn")
+      //   .addEventListener("click", async () => {
+      //     await loadDashboard();
+      //     await refreshAll();
+      //   });
+
+      // Debounced input (prevents hammering charts + API)
+      const onSearchInput = debounce(() => {
+        refreshAll();
+      }, 250);
+
+      document
+        .getElementById("searchDietInput")
+        .addEventListener("input", onSearchInput);
+
+      document.getElementById("dietFilter").addEventListener("change", () => {
+        refreshAll();
+      });
+
+      document
+        .getElementById("nextBtn")
+        .addEventListener("click", () => loadRecipesPage(fetchRecipes, "next"));
+
+      document
+        .getElementById("prevBtn")
+        .addEventListener("click", () => loadRecipesPage(fetchRecipes, "prev"));
+
       await loadDashboard();
       resetRecipePaging();
       await loadRecipesPage(fetchRecipes, "first");
-    });
-
-  document.getElementById("searchDietInput").addEventListener("input", () => {
-    renderCharts(rawData, getFilteredAvg());
-    resetRecipePaging();
-    loadRecipesPage(fetchRecipes, "first");
+    },
   });
-
-  document.getElementById("dietFilter").addEventListener("change", () => {
-    renderCharts(rawData, getFilteredAvg());
-    resetRecipePaging();
-    loadRecipesPage(fetchRecipes, "first");
-  });
-
-  // Paging buttons
-  document
-    .getElementById("nextBtn")
-    .addEventListener("click", () => loadRecipesPage(fetchRecipes, "next"));
-
-  document
-    .getElementById("prevBtn")
-    .addEventListener("click", () => loadRecipesPage(fetchRecipes, "prev"));
-
-  // initial load
-  (async () => {
-    await loadDashboard();
-    resetRecipePaging();
-    await loadRecipesPage(fetchRecipes, "first");
-  })();
 });
