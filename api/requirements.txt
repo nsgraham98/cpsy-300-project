@@ -7,3 +7,4 @@ azure-storage-blob
 pandas
 matplotlib
 seaborn
+azure-cosmos

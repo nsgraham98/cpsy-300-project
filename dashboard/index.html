@@ -54,7 +54,9 @@
 
           <!-- Pie Chart -->
           <div class="bg-white p-4 shadow-lg rounded-lg">
-            <h3 class="font-semibold mb-1">Recipe Distribution by Diet Type</h3>
+            <h3 class="font-semibold mb-1">
+              Top Protein-Rich Recipe Distribution by Diet Type
+            </h3>
             <p class="text-sm text-gray-600 mb-2">
               How many top protein recipes belong to each diet type.
             </p>
@@ -72,7 +74,7 @@
           <input
             id="searchDietInput"
             type="text"
-            placeholder="Search by Diet Type"
+            placeholder="Search by Keyword"
             class="p-2 border rounded w-full sm:w-64"
           />
           <select id="dietFilter" class="p-2 border rounded w-full sm:w-48">
@@ -112,245 +114,46 @@
         </div>
       </section>
 
-      <!-- Simple pagination UI (not wired to API yet) -->
-      <section>
-        <h2 class="text-2xl font-semibold mb-4">Pagination (placeholder)</h2>
-        <div class="flex justify-center gap-2 mt-4">
-          <button class="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400">
+      <!-- Recipes (paged) -->
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold mb-4">Recipes</h2>
+
+        <!-- Results -->
+        <div
+          id="recipeResults"
+          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+        ></div>
+
+        <!-- Paging -->
+        <div class="flex justify-center gap-3 mt-6">
+          <button
+            id="prevBtn"
+            class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled
+          >
             Previous
           </button>
-          <button class="px-3 py-1 bg-blue-600 text-white rounded">1</button>
-          <button class="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400">
-            2
-          </button>
-          <button class="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400">
+
+          <div class="px-4 py-2 bg-white border rounded">
+            Page <span id="pageNum">1</span>
+          </div>
+
+          <button
+            id="nextBtn"
+            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled
+          >
             Next
           </button>
         </div>
+
+        <p id="recipesMeta" class="text-center text-sm text-gray-600 mt-2"></p>
       </section>
     </main>
 
     <footer class="bg-blue-600 p-4 text-white text-center mt-10">
       <p>&copy; 2025 Nutritional Insights. All Rights Reserved.</p>
     </footer>
-
-    <!-- DASHBOARD LOGIC -->
-    <script>
-      const FUNCTION_URL =
-        "https://diet-analysis-function-app-htdkfqhafucsajaa.eastus-01.azurewebsites.net/api/diet-analysis";
-
-      let rawData = null;
-      let barChart = null;
-      let scatterChart = null;
-      let pieChart = null;
-
-      async function fetchData() {
-        try {
-          const res = await fetch(FUNCTION_URL);
-          if (!res.ok) {
-            throw new Error("Failed to fetch data from Azure Function");
-          }
-          const data = await res.json();
-          rawData = data;
-
-          // Update metadata
-          const now = new Date().toLocaleString();
-          document.getElementById("last-updated").textContent = now;
-          document.getElementById("exec-time").textContent =
-            (data.metadata?.execution_time_ms ?? "--") + " ms";
-
-          populateDietFilter(data);
-          updateCharts();
-        } catch (err) {
-          console.error(err);
-        }
-      }
-
-      function populateDietFilter(data) {
-        const dietFilter = document.getElementById("dietFilter");
-        dietFilter.innerHTML = '<option value="all">All Diet Types</option>';
-
-        const dietTypes = new Set();
-        (data.avg_macros || []).forEach((row) => {
-          if (row.Diet_type) {
-            dietTypes.add(row.Diet_type);
-          }
-        });
-
-        Array.from(dietTypes)
-          .sort()
-          .forEach((diet) => {
-            const opt = document.createElement("option");
-            opt.value = diet;
-            opt.textContent = diet;
-            dietFilter.appendChild(opt);
-          });
-      }
-
-      function getFilteredDietTypes() {
-        if (!rawData) return [];
-
-        const searchText = document
-          .getElementById("searchDietInput")
-          .value.trim()
-          .toLowerCase();
-        const selectedDiet = document.getElementById("dietFilter").value;
-
-        return (rawData.avg_macros || []).filter((row) => {
-          const diet = (row.Diet_type || "").toLowerCase();
-
-          const matchesSearch = !searchText || diet.includes(searchText);
-          const matchesSelect =
-            selectedDiet === "all" || row.Diet_type === selectedDiet;
-
-          return matchesSearch && matchesSelect;
-        });
-      }
-
-      function updateCharts() {
-        if (!rawData) return;
-
-        const filteredAvg = getFilteredDietTypes();
-        const avgLabels = filteredAvg.map((row) => row.Diet_type);
-
-        const proteinData = filteredAvg.map((row) => row["Protein(g)"] || 0);
-        const carbsData = filteredAvg.map((row) => row["Carbs(g)"] || 0);
-        const fatData = filteredAvg.map((row) => row["Fat(g)"] || 0);
-
-        // Grouped Bar Chart
-        const barCtx = document.getElementById("barChart").getContext("2d");
-        if (barChart) barChart.destroy();
-        barChart = new Chart(barCtx, {
-          type: "bar",
-          data: {
-            labels: avgLabels,
-            datasets: [
-              {
-                label: "Protein (g)",
-                data: proteinData,
-              },
-              {
-                label: "Carbs (g)",
-                data: carbsData,
-              },
-              {
-                label: "Fat (g)",
-                data: fatData,
-              },
-            ],
-          },
-          options: {
-            responsive: true,
-            plugins: {
-              legend: { position: "top" },
-              title: {
-                display: false,
-              },
-            },
-            scales: {
-              x: { stacked: false },
-              y: { beginAtZero: true },
-            },
-          },
-        });
-
-        // Scatter Plot of Top Protein Recipes
-        const scatterCtx = document
-          .getElementById("scatterPlot")
-          .getContext("2d");
-        if (scatterChart) scatterChart.destroy();
-
-        const topProtein = rawData.top_protein || [];
-        const scatterData = topProtein.map((row) => ({
-          x: row["Carbs(g)"] || 0,
-          y: row["Protein(g)"] || 0,
-          label: row.Recipe_name || "Recipe",
-          diet: row.Diet_type || "Unknown",
-        }));
-
-        scatterChart = new Chart(scatterCtx, {
-          type: "scatter",
-          data: {
-            datasets: [
-              {
-                label: "Top Protein Recipes",
-                data: scatterData,
-                parsing: {
-                  xAxisKey: "x",
-                  yAxisKey: "y",
-                },
-              },
-            ],
-          },
-          options: {
-            responsive: true,
-            plugins: {
-              tooltip: {
-                callbacks: {
-                  label: function (context) {
-                    const point = context.raw;
-                    return `${point.label} (${point.diet}): Protein ${point.y}g, Carbs ${point.x}g`;
-                  },
-                },
-              },
-            },
-            scales: {
-              x: {
-                title: { display: true, text: "Carbs (g)" },
-              },
-              y: {
-                title: { display: true, text: "Protein (g)" },
-                beginAtZero: true,
-              },
-            },
-          },
-        });
-
-        // Pie Chart: distribution of recipes by Diet_type (top_protein)
-        const pieCtx = document.getElementById("pieChart").getContext("2d");
-        if (pieChart) pieChart.destroy();
-
-        const countsByDiet = {};
-        (topProtein || []).forEach((row) => {
-          const diet = row.Diet_type || "Unknown";
-          countsByDiet[diet] = (countsByDiet[diet] || 0) + 1;
-        });
-
-        const pieLabels = Object.keys(countsByDiet);
-        const pieValues = Object.values(countsByDiet);
-
-        pieChart = new Chart(pieCtx, {
-          type: "pie",
-          data: {
-            labels: pieLabels,
-            datasets: [
-              {
-                data: pieValues,
-              },
-            ],
-          },
-          options: {
-            responsive: true,
-            plugins: {
-              legend: { position: "bottom" },
-            },
-          },
-        });
-      }
-      document
-        .getElementById("refreshBtn")
-        .addEventListener("click", fetchData);
-      document
-        .getElementById("getInsightsBtn")
-        .addEventListener("click", fetchData);
-      document
-        .getElementById("searchDietInput")
-        .addEventListener("input", updateCharts);
-      document
-        .getElementById("dietFilter")
-        .addEventListener("change", updateCharts);
-
-      fetchData();
-    </script>
+    <script type="module" src="js/dashboard.js"></script>
   </body>
 </html>
