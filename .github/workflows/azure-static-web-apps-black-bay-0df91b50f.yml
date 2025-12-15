@@ -22,8 +22,9 @@ jobs:
 
       # 🔑 Inject production API base into index.html
       - name: Inject API base into dashboard/index.html
+        if: github.event_name == 'push'
         run: |
-          sed -i 's|__API_BASE__|${{ secrets.PROD_API_BASE }}|g' dashboard/index.html
+          sed -i 's|window.__API_BASE__ = "__API_BASE__";|window.__API_BASE__ = "${{ secrets.PROD_API_BASE }}";|g' dashboard/index.html
 
       - name: Build And Deploy (Static Web App only)
         uses: Azure/static-web-apps-deploy@v1
