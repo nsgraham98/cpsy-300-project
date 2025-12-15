@@ -40,15 +40,22 @@ function getFilteredAvg() {
 }
 
 async function loadDashboard() {
-  rawData = await fetchAnalysisData();
+  try {
+    rawData = await fetchAnalysisData();
 
-  document.getElementById("last-updated").textContent =
-    new Date().toLocaleString();
-  document.getElementById("exec-time").textContent =
-    (rawData.metadata?.execution_time_ms ?? "--") + " ms";
+    document.getElementById("last-updated").textContent =
+      new Date().toLocaleString();
+    document.getElementById("exec-time").textContent =
+      (rawData.metadata?.execution_time_ms ?? "--") + " ms";
 
-  populateDietFilter(rawData);
-  renderCharts(rawData, getFilteredAvg());
+    populateDietFilter(rawData);
+    renderCharts(rawData, getFilteredAvg());
+  } catch (e) {
+    console.error("[dashboard] loadDashboard failed:", e);
+    const metaEl = document.getElementById("recipesMeta");
+    if (metaEl)
+      metaEl.textContent = `Dashboard failed to load: ${e?.message || e}`;
+  }
 }
 
 function debounce(fn, ms = 250) {
@@ -75,12 +82,12 @@ document.addEventListener("DOMContentLoaded", () => {
           await refreshAll();
         });
 
-      // document
-      //   .getElementById("getInsightsBtn")
-      //   .addEventListener("click", async () => {
-      //     await loadDashboard();
-      //     await refreshAll();
-      //   });
+      document
+        .getElementById("getInsightsBtn")
+        .addEventListener("click", async () => {
+          await loadDashboard();
+          await refreshAll();
+        });
 
       // Debounced input (prevents hammering charts + API)
       const onSearchInput = debounce(() => {

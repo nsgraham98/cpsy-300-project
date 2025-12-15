@@ -47,9 +47,7 @@ function showAuthGate() {
 }
 
 export function initAuth({ onLoggedIn } = {}) {
-  console.log("[auth] initAuth called");
   const gbtn = document.getElementById("loginGoogleBtn");
-  console.log("[auth] google btn:", gbtn);
   // Wire buttons
   document
     .getElementById("loginEmailBtn")
